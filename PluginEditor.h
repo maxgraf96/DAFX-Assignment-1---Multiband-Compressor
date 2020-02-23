@@ -20,17 +20,22 @@ public:
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-	const int knobWidth = 120;
-	const int knobHeight = 120;
     Dafx_assignment_1AudioProcessor& processor;
 
 	// General look and feel
 	// MyLookAndFeel lookAndFeel;
 
+	// Labels
+	Label highLabel, midLabel, lowLabel;
+
 	// Knobs
-	MyKnob *knob_lowpass_cutoff;
-	MyKnob *knob_bandpass_centre;
-	MyKnob *knob_highpass_cutoff;
+	MyKnob *knobLowpassCutoff;
+	MyKnob *knobHighpassCutoff;
+
+	// Compressor - Frontend
+	Compressor* compLow = nullptr;
+	Compressor* compMid = nullptr;
+	Compressor* compHigh = nullptr;
 
 	// Buttons
 	ToggleButton toggleLowSolo;

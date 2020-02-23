@@ -18,18 +18,17 @@
 class MyKnob    : public Slider
 {
 public:
-    MyKnob(int width, int height, float rangeBegin, float rangeEnd, float rangeStep, const juce::String text, float value, 
+    MyKnob(const int width, const int height, float rangeBegin, float rangeEnd, float rangeStep, const juce::String text, float value, 
 		juce::Slider::Listener *listener)
     {
 		Slider::setSliderStyle(Slider::Rotary);
 		Slider::setSize(width, height);
-		Slider::setTextBoxStyle(Slider::TextBoxBelow, false, 120, 50);
+		Slider::setTextBoxStyle(Slider::TextBoxBelow, false, 120, LABEL_HEIGHT);
 		Slider::setRange(rangeBegin, rangeEnd, rangeStep);
 		Slider::setPopupDisplayEnabled(true, false, this);
 		Slider::setTextValueSuffix(text);
 		Slider::setValue(value);
 		Slider::addListener(listener);
-
     }
 
     ~MyKnob()
@@ -48,6 +47,14 @@ public:
         // components that your component contains..
 		Slider::resized();
     }
+
+	int getTotalHeight() {
+		return Slider::getHeight() + Slider::getTextBoxHeight();
+	}
+
+	static const int WIDTH = 120;
+	static const int HEIGHT = 120;
+	static const int LABEL_HEIGHT = 36;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MyKnob)

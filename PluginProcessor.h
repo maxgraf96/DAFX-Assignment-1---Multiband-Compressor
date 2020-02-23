@@ -49,9 +49,12 @@ public:
 	void setSoloState(bool states[3]);
 	bool noSolo();
 
+	Compressor *getCompLow();
+	Compressor* getCompMid();
+	Compressor* getCompHigh();
+
 	// Filter parameters
 	float lowpassCutoff = 1000.0;
-	float bandpassCentre = 5000.0;
 	float highpassCutoff = 8000.0;
 
 private:
@@ -64,6 +67,9 @@ private:
 	std::array<bool, 3> soloStates;
 
 	std::unique_ptr<Compressor> compLow;
+	std::unique_ptr<Compressor> compMid;
+	std::unique_ptr<Compressor> compHigh;
+
 	std::unique_ptr<IIRFilter> lowpassFilterL;
 	std::unique_ptr<IIRFilter> lowpassFilterR;
 	std::unique_ptr<IIRFilter> midFilterL;

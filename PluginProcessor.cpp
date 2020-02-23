@@ -13,6 +13,55 @@ Dafx_assignment_1AudioProcessor::Dafx_assignment_1AudioProcessor()
                        )
 #endif
 {
+	// Create buffers for low, mid and high frequency bands
+	int blockSize = pow(2, 12);
+	float sampleRate = 48000.0;
+	lowBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, blockSize));
+	midBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, blockSize));
+	highBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, blockSize));
+
+	// Create the filter objects (currently limited to 3 bands)
+	// NB: One filter per channel is required
+	lowpassFilterL = std::unique_ptr<IIRFilter>(new IIRFilter());
+	lowpassFilterR = std::unique_ptr<IIRFilter>(new IIRFilter());
+	highpassFilterL = std::unique_ptr<IIRFilter>(new IIRFilter());
+	highpassFilterR = std::unique_ptr<IIRFilter>(new IIRFilter());
+
+	float threshold = -8.0f;
+	float ratio = 6.0f / 1.0f;
+	float tauAttack = 10.0;
+	float tauRelease = 200.0f;
+	float makeUpGain = 5.0f;
+
+	compLow = std::unique_ptr<Compressor>(new Compressor(
+		sampleRate,
+		blockSize,
+		threshold,
+		ratio,
+		tauAttack,
+		tauRelease,
+		makeUpGain
+	));
+
+	compMid = std::unique_ptr<Compressor>(new Compressor(
+		sampleRate,
+		blockSize,
+		threshold,
+		ratio,
+		tauAttack,
+		tauRelease,
+		makeUpGain
+	));
+
+	compHigh = std::unique_ptr<Compressor>(new Compressor(
+		sampleRate,
+		blockSize,
+		threshold,
+		ratio,
+		tauAttack,
+		tauRelease,
+		makeUpGain
+	));
 }
 
 Dafx_assignment_1AudioProcessor::~Dafx_assignment_1AudioProcessor()
@@ -21,6 +70,8 @@ Dafx_assignment_1AudioProcessor::~Dafx_assignment_1AudioProcessor()
 	midBuffer.reset();
 	highBuffer.reset();
 	compLow.reset();
+	compMid.reset();
+	compHigh.reset();
 	lowpassFilterL.reset();
 	lowpassFilterR.reset();
 	midFilterL.reset();
@@ -93,38 +144,16 @@ void Dafx_assignment_1AudioProcessor::changeProgramName (int index, const String
 //==============================================================================
 void Dafx_assignment_1AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+	compLow->setSampleRate(sampleRate);
+	compLow->setBufferSize(samplesPerBlock);
+	compMid->setSampleRate(sampleRate);
+	compMid->setBufferSize(samplesPerBlock);
+	compHigh->setSampleRate(sampleRate);
+	compHigh->setBufferSize(samplesPerBlock);
 
-	// Create buffers for low, mid and high frequency bands
-	lowBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, samplesPerBlock));
-	midBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, samplesPerBlock));
-	highBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, samplesPerBlock));
-
-	// Create the filter objects (currently limited to 3 bands)
-	// NB: One filter per channel is required
-	lowpassFilterL = std::unique_ptr<IIRFilter>(new IIRFilter());
-	lowpassFilterR = std::unique_ptr<IIRFilter>(new IIRFilter());
-	midFilterL = std::unique_ptr<IIRFilter>(new IIRFilter());
-	midFilterR = std::unique_ptr<IIRFilter>(new IIRFilter());
-	highpassFilterL = std::unique_ptr<IIRFilter>(new IIRFilter());
-	highpassFilterR = std::unique_ptr<IIRFilter>(new IIRFilter());
-
-	float threshold = -8.0f;
-	float ratio = 6.0f / 1.0f;
-	float tauAttack = 10.0;
-	float tauRelease = 200.0f;
-	float makeUpGain = 5.0f;
-
-	compLow = std::unique_ptr<Compressor>(new Compressor(
-		sampleRate, 
-		samplesPerBlock, 
-		threshold, 
-		ratio, 
-		tauAttack, 
-		tauRelease, 
-		makeUpGain
-	));
+	lowBuffer->setSize(getNumOutputChannels(), samplesPerBlock);
+	midBuffer->setSize(getNumOutputChannels(), samplesPerBlock);
+	highBuffer->setSize(getNumOutputChannels(), samplesPerBlock);
 }
 
 void Dafx_assignment_1AudioProcessor::releaseResources()
@@ -174,8 +203,6 @@ void Dafx_assignment_1AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 	// Set filter coefficients
 	lowpassFilterL->setCoefficients(IIRCoefficients::makeLowPass(getSampleRate(), lowpassCutoff, FILTER_Q));
 	lowpassFilterR->setCoefficients(IIRCoefficients::makeLowPass(getSampleRate(), lowpassCutoff, FILTER_Q));
-	midFilterL->setCoefficients(IIRCoefficients::makeBandPass(getSampleRate(), bandpassCentre, FILTER_Q));
-	midFilterR->setCoefficients(IIRCoefficients::makeBandPass(getSampleRate(), bandpassCentre, FILTER_Q));
 	highpassFilterL->setCoefficients(IIRCoefficients::makeHighPass(getSampleRate(), highpassCutoff, FILTER_Q));
 	highpassFilterR->setCoefficients(IIRCoefficients::makeHighPass(getSampleRate(), highpassCutoff, FILTER_Q));
 
@@ -197,16 +224,23 @@ void Dafx_assignment_1AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 		if (channel == 0) {
 			// Process
 			lowpassFilterL->processSamples(lowBuffer->getWritePointer(channel), numSamples);
-			midFilterL->processSamples(midBuffer->getWritePointer(channel), numSamples);
 			highpassFilterL->processSamples(highBuffer->getWritePointer(channel), numSamples);
 		}
 		else {
 			// Process
 			lowpassFilterR->processSamples(lowBuffer->getWritePointer(channel), numSamples);
-			midFilterR->processSamples(midBuffer->getWritePointer(channel), numSamples);
 			highpassFilterR->processSamples(highBuffer->getWritePointer(channel), numSamples);
 		}
+
+		// Calculate mid band by subtracting low and high band from input signal
+		midBuffer->addFrom(channel, 0, lowBuffer->getReadPointer(channel), numSamples, -1.0F);
+		midBuffer->addFrom(channel, 0, highBuffer->getReadPointer(channel), numSamples, -1.0F);
 	}
+
+	// Do some compressssion
+	compLow->processBlock(*lowBuffer.get(), totalNumOutputChannels);
+	compMid->processBlock(*midBuffer.get(), totalNumOutputChannels);
+	compHigh->processBlock(*highBuffer.get(), totalNumOutputChannels);
 
 	// Send back to buffer
 	buffer.clear();
@@ -228,9 +262,6 @@ void Dafx_assignment_1AudioProcessor::processBlock (AudioBuffer<float>& buffer, 
 			}
 		}
 	}
-
-	// Do some compressssion
-	//compLow->processBlock(buffer, totalNumOutputChannels);
 }
 
 void Dafx_assignment_1AudioProcessor::setSoloState(bool states[3]) {
@@ -246,6 +277,18 @@ bool Dafx_assignment_1AudioProcessor::noSolo() {
 		}
 	}
 	return true;
+}
+
+Compressor *Dafx_assignment_1AudioProcessor::getCompLow() {
+	return compLow.get();
+}
+
+Compressor* Dafx_assignment_1AudioProcessor::getCompMid() {
+	return compMid.get();
+}
+
+Compressor* Dafx_assignment_1AudioProcessor::getCompHigh() {
+	return compHigh.get();
 }
 
 //==============================================================================

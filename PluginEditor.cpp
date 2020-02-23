@@ -4,39 +4,52 @@
 Dafx_assignment_1AudioProcessorEditor::Dafx_assignment_1AudioProcessorEditor (Dafx_assignment_1AudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
-    setSize (600, 300);
-
 	// Initialise knobs
-	knob_lowpass_cutoff = new MyKnob(knobWidth, knobHeight, 1.0, 4000.0, 1.0, " Lowpass Cutoff", 2000.0, this);
-	knob_bandpass_centre = new MyKnob(knobWidth, knobHeight, 4000.0, 6000.0, 1.0, " Midrange centre", 5000.0, this);
-	knob_highpass_cutoff = new MyKnob(knobWidth, knobHeight, 6000.0, 20000.0, 1.0, " Highpass Cutoff", 8000.0, this);
-
-	addAndMakeVisible(knob_lowpass_cutoff);
-	addAndMakeVisible(knob_bandpass_centre);
-	addAndMakeVisible(knob_highpass_cutoff);
+	knobLowpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 4000.0, 1.0, " Lowpass Cutoff", 2000.0, this);
+	knobHighpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 6000.0, 20000.0, 1.0, " Highpass Cutoff", 8000.0, this);
+	if (compLow == nullptr) {
+		compLow = processor.getCompLow();
+	}
+	if (compMid == nullptr) {
+		compMid = processor.getCompMid();
+	}
+	if (compHigh == nullptr) {
+		compHigh = processor.getCompHigh();
+	}
 	
-	knob_lowpass_cutoff->setBounds(24, 24, knobWidth, knobHeight);
-	knob_bandpass_centre->setBounds(24 * 2 + knobWidth, 24, knobWidth, knobHeight);
-	knob_highpass_cutoff->setBounds(24 * 3 + 2 * knobWidth, 24, knobWidth, knobHeight);
+	// Initialise labels
+	addAndMakeVisible(lowLabel);
+	addAndMakeVisible(midLabel);
+	addAndMakeVisible(highLabel);
+	lowLabel.setText("Low band", dontSendNotification);
+	midLabel.setText("Mid band", dontSendNotification);
+	highLabel.setText("High band", dontSendNotification);
 
 	// Add solo buttons
 	addAndMakeVisible(toggleLowSolo);
 	addAndMakeVisible(toggleMidSolo);
 	addAndMakeVisible(toggleHighSolo);
-	toggleLowSolo.setBounds(knob_lowpass_cutoff->getX(), knob_lowpass_cutoff->getY() + 24, 24, 24);
-	toggleMidSolo.setBounds(knob_bandpass_centre->getX(), knob_bandpass_centre->getY() + 24, 24, 24);
-	toggleHighSolo.setBounds(knob_highpass_cutoff->getX(), knob_highpass_cutoff->getY() + 24, 24, 24);
 	toggleLowSolo.onClick = [this] { updateToggleState(&toggleLowSolo, "ON"); };
 	toggleMidSolo.onClick = [this] { updateToggleState(&toggleMidSolo, "ON"); };
 	toggleHighSolo.onClick = [this] { updateToggleState(&toggleHighSolo, "ON"); };
 
+	// Add knobs
+	addAndMakeVisible(knobLowpassCutoff);
+	addAndMakeVisible(knobHighpassCutoff);
+	addAndMakeVisible(compLow);
+	addAndMakeVisible(compMid);
+	addAndMakeVisible(compHigh);
+
+
+	// Set size last, as it makes a call to resize()
+	// I.e. make sure to initialise everything before calling setSize()
+	setSize(900, 600);
 }
 
 Dafx_assignment_1AudioProcessorEditor::~Dafx_assignment_1AudioProcessorEditor()
 {
-	delete knob_lowpass_cutoff;
-	delete knob_bandpass_centre;
-	delete knob_highpass_cutoff;
+	delete knobLowpassCutoff;
+	delete knobHighpassCutoff;
 }
 
 void Dafx_assignment_1AudioProcessorEditor::paint (Graphics& g)
@@ -46,18 +59,44 @@ void Dafx_assignment_1AudioProcessorEditor::paint (Graphics& g)
 
     g.setColour (Colours::white);
     g.setFont (15.0f);
-    // g.drawFittedText ("Hello World!", getLocalBounds(), Justification::centred, 1);
 }
 
 void Dafx_assignment_1AudioProcessorEditor::resized()
 {
+	lowLabel.setBounds(24, 24, 72, 24);
+	midLabel.setBounds(24, MyKnob::HEIGHT + 24 * 3, 72, 24);
+	highLabel.setBounds(24, MyKnob::HEIGHT * 2 + 24 * 5, 72, 24);
+
+	toggleLowSolo.setBounds(lowLabel.getX() + lowLabel.getWidth() + 24, lowLabel.getY(), 24, 24);
+	toggleMidSolo.setBounds(midLabel.getX() + midLabel.getWidth() + 24, midLabel.getY(), 24, 24);
+	toggleHighSolo.setBounds(highLabel.getX() + highLabel.getWidth() + 24, highLabel.getY(), 24, 24);
+
+	knobLowpassCutoff->setBounds(24, lowLabel.getY() + 24, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobHighpassCutoff->setBounds(24, highLabel.getY() + 24, MyKnob::WIDTH, MyKnob::HEIGHT);
+	
+	compLow->setBounds(
+		toggleLowSolo.getBounds().getTopRight().getX() + 24,
+		toggleLowSolo.getBounds().getTopRight().getY(),
+		compLow->getWidth(),
+		compLow->getHeight());
+
+	compMid->setBounds(
+		toggleMidSolo.getBounds().getTopRight().getX() + 24,
+		toggleMidSolo.getBounds().getTopRight().getY(),
+		compMid->getWidth(),
+		compMid->getHeight());
+
+	compHigh->setBounds(
+		toggleHighSolo.getBounds().getTopRight().getX() + 24,
+		toggleHighSolo.getBounds().getTopRight().getY(),
+		compHigh->getWidth(),
+		compHigh->getHeight());
 }
 
 void Dafx_assignment_1AudioProcessorEditor::sliderValueChanged(Slider* slider)
 {
-	processor.lowpassCutoff = knob_lowpass_cutoff->getValue();
-	processor.bandpassCentre = knob_bandpass_centre->getValue();
-	processor.highpassCutoff = knob_highpass_cutoff->getValue();
+	processor.lowpassCutoff = knobLowpassCutoff->getValue();
+	processor.highpassCutoff = knobHighpassCutoff->getValue();
 }
 
 void Dafx_assignment_1AudioProcessorEditor::updateToggleState(Button* button, String name)

@@ -27,6 +27,27 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 	this->tauAttack = tauAttack;
 	this->tauRelease = tauRelease;
 	this->makeUpGain = makeUpGain;
+
+	// Initialise knobs
+	knobThreshold = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, -60.0, 0.0, 1.0, " Threshold (dB)", -12.0, this));
+	knobRatio = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 20.0, 1.0, " : 1 (ratio)", 2.0, this));
+	knobAttack = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 1000.0, 1.0, " Attack Time (ms)", 10.0, this));
+	knobRelease = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 2000.0, 1.0, " Release Time (ms)", 70.0, this));
+	knobMakeUpGain = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 0.0, 10.0, 1.0, " Make-up Gain (dB)", 0.0, this));
+
+	addAndMakeVisible(knobThreshold.get());
+	addAndMakeVisible(knobRatio.get());
+	addAndMakeVisible(knobAttack.get());
+	addAndMakeVisible(knobRelease.get());
+	addAndMakeVisible(knobMakeUpGain.get());
+
+	setSize(5 * MyKnob::WIDTH + 4 * 24, MyKnob::HEIGHT + MyKnob::LABEL_HEIGHT);
+	setOpaque(true);
 }
 
 Compressor::~Compressor()
@@ -93,27 +114,35 @@ void Compressor::processBlock(AudioBuffer<float>& buffer, int totalNumOutputChan
 
 void Compressor::paint (Graphics& g)
 {
-    /* This demo code just fills the component's background and
-       draws some placeholder text to get you started.
-
-       You should replace everything in this method with your own
-       drawing code..
-    */
-
-    g.fillAll (juce::Colour::fromRGB(255, 255, 200));   // clear the background
-
-    g.setColour (Colours::grey);
-    g.drawRect (getLocalBounds(), 1);   // draw an outline around the component
-
-    g.setColour (Colours::white);
-    g.setFont (14.0f);
-    g.drawText ("Compressor", getLocalBounds(),
-                Justification::centred, true);   // draw some placeholder text
+	g.fillAll(getLookAndFeel().findColour(ResizableWindow::backgroundColourId));
+	g.setColour (Colours::white);
+    g.setFont (13.0f);
 }
 
 void Compressor::resized()
 {
-    // This method is where you should set the bounds of any child
-    // components that your component contains..
+	int marginTop = 24;
+	int marginRight = 12;
 
+	knobThreshold->setBounds(0, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobRatio->setBounds(MyKnob::WIDTH + marginRight, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobAttack->setBounds(MyKnob::WIDTH * 2 + marginRight * 2, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobRelease->setBounds(MyKnob::WIDTH * 3 + marginRight * 3, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobMakeUpGain->setBounds(MyKnob::WIDTH * 4 + marginRight * 4, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+}
+
+void Compressor::sliderValueChanged(Slider* slider) {
+	threshold = knobThreshold->getValue();
+	ratio = knobRatio->getValue();
+	tauAttack = knobAttack->getValue();
+	tauRelease = knobRelease->getValue();
+	makeUpGain = knobMakeUpGain->getValue();
+}
+
+void Compressor::setSampleRate(float sampleRate) {
+	this->sampleRate = sampleRate;
+}
+
+void Compressor::setBufferSize(int bufferSize) {
+	this->bufferSize = bufferSize;
 }
