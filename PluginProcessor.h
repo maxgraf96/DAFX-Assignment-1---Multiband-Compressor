@@ -69,13 +69,9 @@ private:
 	std::unique_ptr<Compressor> compLow;
 	std::unique_ptr<Compressor> compMid;
 	std::unique_ptr<Compressor> compHigh;
-
-	std::unique_ptr<IIRFilter> lowpassFilterL;
-	std::unique_ptr<IIRFilter> lowpassFilterR;
-	std::unique_ptr<IIRFilter> midFilterL;
-	std::unique_ptr<IIRFilter> midFilterR;
-	std::unique_ptr<IIRFilter> highpassFilterL;
-	std::unique_ptr<IIRFilter> highpassFilterR;
+	
+	std::array<std::unique_ptr<IIRFilter>, 2> lowpassFilters;
+	std::array<std::unique_ptr<IIRFilter>, 2> highpassFilters;
 
 	const double FILTER_Q = sqrt(2) / 2;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_1AudioProcessor)

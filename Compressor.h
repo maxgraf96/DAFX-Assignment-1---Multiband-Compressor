@@ -31,14 +31,15 @@ private:
 	std::unique_ptr<AudioBuffer<float>> inputBuffer;	// Separate buffer to analyse the input signal
 	float sampleRate;
 	int bufferSize;
-	float yLPrev;					// Previous sample used for gain smoothing
-	float* xg, * xl, * yg, * yl;	// Buffers used in control voltage calculation
-	float* c;						// Output control voltage used for compression
+	float previousSample;					// Previous sample used for gain smoothing
+	float* inputGain, * gainDelta, * outputGain, * outputDelta;	// Buffers used in control voltage calculation
+	float* control;						// Output control voltage used for compression
 
 	float threshold;
 	float ratio;
 	float tauAttack, tauRelease;	// Attack and release
 	float makeUpGain;
+	const float kneeWidth = 6;
 
 	// Knobs
 	std::unique_ptr<MyKnob> knobThreshold, knobRatio, knobAttack, knobRelease, knobMakeUpGain;

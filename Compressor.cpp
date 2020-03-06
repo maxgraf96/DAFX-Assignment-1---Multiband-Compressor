@@ -14,11 +14,11 @@
 Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float ratio, float tauAttack, float tauRelease, float makeUpGain)
 {
 	inputBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, bufferSize));
-	xg = new float[bufferSize];
-	xl = new float[bufferSize];
-	yg = new float[bufferSize];
-	yl = new float[bufferSize];
-	c = new float[bufferSize];
+	inputGain = new float[bufferSize];
+	gainDelta = new float[bufferSize];
+	outputGain = new float[bufferSize];
+	outputDelta = new float[bufferSize];
+	control = new float[bufferSize];
 
 	this->sampleRate = sampleRate;
 	this->bufferSize = bufferSize;
@@ -30,15 +30,15 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 
 	// Initialise knobs
 	knobThreshold = std::unique_ptr<MyKnob>(
-		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, -60.0, 0.0, 1.0, " Threshold (dB)", -12.0, this));
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, -40.0, 0.0, 1.0, " Threshold (dB)", threshold, this));
 	knobRatio = std::unique_ptr<MyKnob>(
-		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 20.0, 1.0, " : 1 (ratio)", 2.0, this));
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 20.0, 1.0, " : 1 (ratio)", ratio, this));
 	knobAttack = std::unique_ptr<MyKnob>(
-		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 1000.0, 1.0, " Attack Time (ms)", 10.0, this));
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 20.0, 1000.0, 1.0, " Attack Time (ms)", tauAttack, this));
 	knobRelease = std::unique_ptr<MyKnob>(
-		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 2000.0, 1.0, " Release Time (ms)", 70.0, this));
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 20.0, 2000.0, 1.0, " Release Time (ms)", tauRelease, this));
 	knobMakeUpGain = std::unique_ptr<MyKnob>(
-		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 0.0, 10.0, 1.0, " Make-up Gain (dB)", 0.0, this));
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 0.0, 10.0, 1.0, " Make-up Gain (dB)", makeUpGain, this));
 
 	addAndMakeVisible(knobThreshold.get());
 	addAndMakeVisible(knobRatio.get());
@@ -52,11 +52,11 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 
 Compressor::~Compressor()
 {
-	delete xg;
-	delete xl;
-	delete yg;
-	delete yl;
-	delete c;
+	delete inputGain;
+	delete gainDelta;
+	delete outputGain;
+	delete outputDelta;
+	delete control;
 	inputBuffer.reset();
 }
 
@@ -75,39 +75,46 @@ void Compressor::processBlock(AudioBuffer<float>& buffer, int totalNumOutputChan
 	float alphaRelease = exp(-1 / (0.001 * sampleRate * tauRelease));
 	float currentSample = 0.0f; // Placeholder for current sample
 
+	// Go through buffer and calculate the (non-)attenuation for each sample
 	for (int i = 0; i < bufferSize; ++i) {
 		currentSample = inputBuffer->getReadPointer(0)[i];
-		// Level detection- estimate level using peak detector 
+		// Level detection using peak detector 
 		// I.e. look at the amplitude of the current sample
 		if (fabs(currentSample) < 0.000001) 
-			xg[i] = -120; 
+			inputGain[i] = -120; 
 		else 
-			xg[i] = 20 * log10(fabs(currentSample));
+			inputGain[i] = 20 * log10(fabs(currentSample));
+
+		// Do some kneet exercises
+		float slope = 1 / ratio - 1;
+		float overshoot = inputGain[i] - threshold;
+		if (overshoot <= -kneeWidth / 2)
+			outputGain[i] = inputGain[i];
+		if (overshoot > -kneeWidth / 2 && overshoot < kneeWidth / 2)
+			outputGain[i] = inputGain[i] + slope * pow((overshoot + kneeWidth / 2), 2) / (2 * kneeWidth);
+		if (overshoot >= -kneeWidth / 2)
+			outputGain[i] = inputGain[i] + slope * overshoot;
 		
-		// Gain computer - static apply input/output curve 
-		if (xg[i] >= threshold) // Attenuate
-			yg[i] = threshold + (xg[i] - threshold) / ratio; 
-		else // Leave unchanged
-			yg[i] = xg[i]; 
-		
-		xl[i] = xg[i] - yg[i];
-		
-		// Ballistics- smoothing of the gain 
-		if (xl[0] > yLPrev) 
-			yl[i] = alphaAttack * yLPrev + (1 - alphaAttack) * xl[i]; 
+		gainDelta[i] = inputGain[i] - outputGain[i];
+
+		// Ballistics - smoothing of the gain
+		if (gainDelta[i] > previousSample)
+			outputDelta[i] = alphaAttack * previousSample + (1 - alphaAttack) * gainDelta[i]; 
 		else 
-			yl[i] = alphaRelease * yLPrev + (1 - alphaRelease) * xl[i] ;
+			outputDelta[i] = alphaRelease * previousSample + (1 - alphaRelease) * gainDelta[i];
 		
 		// find control 
-		c[i] = pow(10,(makeUpGain - yl[i]) / 20);
-		yLPrev=yl[i];
+		// Conversion back to linear in order to apply to sample
+		control[i] = pow(10, (makeUpGain - outputDelta[i]) / 20);
+		previousSample = outputDelta[i];
 	}
 
 	for (int channel = 0; channel < totalNumOutputChannels; ++channel)
 	{
 		auto* channelData = buffer.getWritePointer(channel);
 		for (int i = 0; i < bufferSize; i++) {
-			channelData[i] *= c[channel];
+			// (Non-)attenuate
+			channelData[i] *= control[channel];
 		}
 	}
 }

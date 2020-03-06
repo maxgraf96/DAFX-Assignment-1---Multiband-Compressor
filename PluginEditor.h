@@ -37,10 +37,12 @@ private:
 	Compressor* compMid = nullptr;
 	Compressor* compHigh = nullptr;
 
-	// Buttons
-	ToggleButton toggleLowSolo;
-	ToggleButton toggleMidSolo;
-	ToggleButton toggleHighSolo;
+	// Solo buttons
+	// Use text buttons here in order to be able to display the "s" for solo 
+	// and make them togglable in the implementation
+	TextButton toggleLowSolo{ "s" };
+	TextButton toggleMidSolo{ "s" };
+	TextButton toggleHighSolo{ "s" };
 
 	void sliderValueChanged(Slider* slider) override;
 	void updateToggleState(Button* button, String name);

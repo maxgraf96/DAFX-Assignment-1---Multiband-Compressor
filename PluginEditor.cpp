@@ -5,8 +5,8 @@ Dafx_assignment_1AudioProcessorEditor::Dafx_assignment_1AudioProcessorEditor (Da
     : AudioProcessorEditor (&p), processor (p)
 {
 	// Initialise knobs
-	knobLowpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 4000.0, 1.0, " Lowpass Cutoff", 2000.0, this);
-	knobHighpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 6000.0, 20000.0, 1.0, " Highpass Cutoff", 8000.0, this);
+	knobLowpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 1.0, 10050.0, 1.0, " Lowpass Cutoff", 2000.0, this);
+	knobHighpassCutoff = new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 10050.0, 20000.0, 1.0, " Highpass Cutoff", 8000.0, this);
 	if (compLow == nullptr) {
 		compLow = processor.getCompLow();
 	}
@@ -29,6 +29,9 @@ Dafx_assignment_1AudioProcessorEditor::Dafx_assignment_1AudioProcessorEditor (Da
 	addAndMakeVisible(toggleLowSolo);
 	addAndMakeVisible(toggleMidSolo);
 	addAndMakeVisible(toggleHighSolo);
+	toggleLowSolo.setClickingTogglesState(true);
+	toggleMidSolo.setClickingTogglesState(true);
+	toggleHighSolo.setClickingTogglesState(true);
 	toggleLowSolo.onClick = [this] { updateToggleState(&toggleLowSolo, "ON"); };
 	toggleMidSolo.onClick = [this] { updateToggleState(&toggleMidSolo, "ON"); };
 	toggleHighSolo.onClick = [this] { updateToggleState(&toggleHighSolo, "ON"); };
