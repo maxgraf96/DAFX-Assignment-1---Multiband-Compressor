@@ -11,8 +11,9 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "Compressor.h"
 
-Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float ratio, float tauAttack, float tauRelease, float makeUpGain)
+Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float ratio, float tauAttack, float tauRelease, float makeUpGain, float kneeWidth)
 {
+	// Initialise buffers
 	inputBuffer = std::unique_ptr<AudioBuffer<float>>(new AudioBuffer<float>(2, bufferSize));
 	inputGain = new float[bufferSize];
 	gainDelta = new float[bufferSize];
@@ -20,6 +21,7 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 	outputDelta = new float[bufferSize];
 	control = new float[bufferSize];
 
+	// Set configuration values
 	this->sampleRate = sampleRate;
 	this->bufferSize = bufferSize;
 	this->threshold = threshold;
@@ -27,6 +29,7 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 	this->tauAttack = tauAttack;
 	this->tauRelease = tauRelease;
 	this->makeUpGain = makeUpGain;
+	this->kneeWidth = kneeWidth;
 
 	// Initialise knobs
 	knobThreshold = std::unique_ptr<MyKnob>(
@@ -39,17 +42,24 @@ Compressor::Compressor(float sampleRate, int bufferSize, float threshold, float 
 		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 20.0, 2000.0, 1.0, " Release Time (ms)", tauRelease, this));
 	knobMakeUpGain = std::unique_ptr<MyKnob>(
 		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 0.0, 10.0, 1.0, " Make-up Gain (dB)", makeUpGain, this));
+	knobKneeWidth = std::unique_ptr<MyKnob>(
+		new MyKnob(MyKnob::WIDTH, MyKnob::HEIGHT, 0.0, 20.0, 1.0, " Knee width (dB)", kneeWidth, this));
 
+	// Add knobs to UI
 	addAndMakeVisible(knobThreshold.get());
 	addAndMakeVisible(knobRatio.get());
 	addAndMakeVisible(knobAttack.get());
 	addAndMakeVisible(knobRelease.get());
 	addAndMakeVisible(knobMakeUpGain.get());
+	addAndMakeVisible(knobKneeWidth.get());
 
-	setSize(5 * MyKnob::WIDTH + 4 * 24, MyKnob::HEIGHT + MyKnob::LABEL_HEIGHT);
-	setOpaque(true);
+	// Set UI size for component
+	setSize(6 * MyKnob::WIDTH + 5 * 24, MyKnob::HEIGHT + MyKnob::LABEL_HEIGHT);
 }
 
+/*
+	Destructor: Release memory
+*/
 Compressor::~Compressor()
 {
 	delete inputGain;
@@ -85,7 +95,7 @@ void Compressor::processBlock(AudioBuffer<float>& buffer, int totalNumOutputChan
 		else 
 			inputGain[i] = 20 * log10(fabs(currentSample));
 
-		// Do some kneet exercises
+		// Calculate knee
 		float slope = 1 / ratio - 1;
 		float overshoot = inputGain[i] - threshold;
 		if (overshoot <= -kneeWidth / 2)
@@ -136,6 +146,7 @@ void Compressor::resized()
 	knobAttack->setBounds(MyKnob::WIDTH * 2 + marginRight * 2, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
 	knobRelease->setBounds(MyKnob::WIDTH * 3 + marginRight * 3, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
 	knobMakeUpGain->setBounds(MyKnob::WIDTH * 4 + marginRight * 4, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
+	knobKneeWidth->setBounds(MyKnob::WIDTH * 5 + marginRight * 5, marginTop, MyKnob::WIDTH, MyKnob::HEIGHT);
 }
 
 void Compressor::sliderValueChanged(Slider* slider) {
@@ -144,6 +155,7 @@ void Compressor::sliderValueChanged(Slider* slider) {
 	tauAttack = knobAttack->getValue();
 	tauRelease = knobRelease->getValue();
 	makeUpGain = knobMakeUpGain->getValue();
+	kneeWidth = knobKneeWidth->getValue();
 }
 
 void Compressor::setSampleRate(float sampleRate) {

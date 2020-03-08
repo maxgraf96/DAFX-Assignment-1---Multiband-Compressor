@@ -66,13 +66,16 @@ private:
 	// Placeholder for solo states of frequency bands
 	std::array<bool, 3> soloStates;
 
+	// Compressors for the three bands
 	std::unique_ptr<Compressor> compLow;
 	std::unique_ptr<Compressor> compMid;
 	std::unique_ptr<Compressor> compHigh;
 	
+	// Set of filters (2 for each band, because left and right channel need to be filtered separately)
 	std::array<std::unique_ptr<IIRFilter>, 2> lowpassFilters;
 	std::array<std::unique_ptr<IIRFilter>, 2> highpassFilters;
 
+	// Set a constant filter Q value of 0.707
 	const double FILTER_Q = sqrt(2) / 2;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Dafx_assignment_1AudioProcessor)
 };

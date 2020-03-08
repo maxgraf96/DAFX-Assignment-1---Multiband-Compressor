@@ -18,7 +18,7 @@
 class Compressor    : public Component, private Slider::Listener
 {
 public:
-    Compressor(float sampleRate, int bufferSize, float threshold, float ratio, float tauAttack, float tauRelease, float makeUpGain);
+    Compressor(float sampleRate, int bufferSize, float threshold, float ratio, float tauAttack, float tauRelease, float makeUpGain, float kneeWidth);
     ~Compressor();
 
     void paint (Graphics&) override;
@@ -28,22 +28,34 @@ public:
 	void setBufferSize(int bufferSize);
 
 private:
-	std::unique_ptr<AudioBuffer<float>> inputBuffer;	// Separate buffer to analyse the input signal
+	// Separate buffer to analyse the input signal
+	std::unique_ptr<AudioBuffer<float>> inputBuffer;
+	// Sample rate coming from VST host
 	float sampleRate;
+	// Buffer size coming from VST host
 	int bufferSize;
-	float previousSample;					// Previous sample used for gain smoothing
-	float* inputGain, * gainDelta, * outputGain, * outputDelta;	// Buffers used in control voltage calculation
-	float* control;						// Output control voltage used for compression
+	// Previous sample used for gain smoothing
+	float previousSample;
+	// Buffers used in control voltage calculation
+	float* inputGain, * gainDelta, * outputGain, * outputDelta;
+	// Buffer of output control voltages used for compression - applied to each sample individually
+	float* control;
 
+	// Compressor properties
+	// Threshold in dB
 	float threshold;
+	// Ratio
 	float ratio;
-	float tauAttack, tauRelease;	// Attack and release
+	// Attack and release time in ms
+	float tauAttack, tauRelease;
+	// Make up gain and knee width in dB
 	float makeUpGain;
-	const float kneeWidth = 6;
+	float kneeWidth;
 
 	// Knobs
-	std::unique_ptr<MyKnob> knobThreshold, knobRatio, knobAttack, knobRelease, knobMakeUpGain;
+	std::unique_ptr<MyKnob> knobThreshold, knobRatio, knobAttack, knobRelease, knobMakeUpGain, knobKneeWidth;
 
+	// Callback method for knob updates
 	void sliderValueChanged(Slider* slider) override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Compressor)

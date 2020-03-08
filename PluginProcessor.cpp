@@ -28,12 +28,15 @@ Dafx_assignment_1AudioProcessor::Dafx_assignment_1AudioProcessor()
 		highpassFilters[i] = std::unique_ptr<IIRFilter>(new IIRFilter());
 	}
 
+	// Initialise compressor values for all bands
 	float threshold = -8.0f;
-	float ratio = 6.0f / 1.0f;
-	float tauAttack = 10.0;
+	float ratio = 2.0f;
+	float tauAttack = 50.0;
 	float tauRelease = 200.0f;
-	float makeUpGain = 5.0f;
+	float makeUpGain = 0.0f;
+	float kneeWidth = 6.0f;
 
+	// Create compressor instances
 	compLow = std::unique_ptr<Compressor>(new Compressor(
 		sampleRate,
 		blockSize,
@@ -41,7 +44,8 @@ Dafx_assignment_1AudioProcessor::Dafx_assignment_1AudioProcessor()
 		ratio,
 		tauAttack,
 		tauRelease,
-		makeUpGain
+		makeUpGain,
+		kneeWidth
 	));
 
 	compMid = std::unique_ptr<Compressor>(new Compressor(
@@ -51,7 +55,8 @@ Dafx_assignment_1AudioProcessor::Dafx_assignment_1AudioProcessor()
 		ratio,
 		tauAttack,
 		tauRelease,
-		makeUpGain
+		makeUpGain,
+		kneeWidth
 	));
 
 	compHigh = std::unique_ptr<Compressor>(new Compressor(
@@ -61,12 +66,14 @@ Dafx_assignment_1AudioProcessor::Dafx_assignment_1AudioProcessor()
 		ratio,
 		tauAttack,
 		tauRelease,
-		makeUpGain
+		makeUpGain,
+		kneeWidth
 	));
 }
 
 Dafx_assignment_1AudioProcessor::~Dafx_assignment_1AudioProcessor()
 {
+	// Release memory
 	lowBuffer.reset();
 	midBuffer.reset();
 	highBuffer.reset();
@@ -143,6 +150,7 @@ void Dafx_assignment_1AudioProcessor::changeProgramName(int index, const String&
 //==============================================================================
 void Dafx_assignment_1AudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+	// Set actual sample rate and block sizes coming from VST host
 	compLow->setSampleRate(sampleRate);
 	compLow->setBufferSize(samplesPerBlock);
 	compMid->setSampleRate(sampleRate);
@@ -238,6 +246,7 @@ void Dafx_assignment_1AudioProcessor::processBlock(AudioBuffer<float>& buffer, M
 			buffer.addFrom(1, 0, currentBuffer, 1, 0, numSamples);
 		}
 	}
+	// Otherwise play only from soloed bands
 	else {
 		for (int i = 0; i < soloStates.size(); i++) {
 			auto currentBuffer = i == 0 ? *lowBuffer : (i == 1 ? *midBuffer : *highBuffer);

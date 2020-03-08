@@ -22,8 +22,9 @@ private:
     // access the processor object that created it.
     Dafx_assignment_1AudioProcessor& processor;
 
-	// General look and feel
-	// MyLookAndFeel lookAndFeel;
+	// Plugin editor window size
+	const int WIDTH = 976;
+	const int HEIGHT = 554;
 
 	// Labels
 	Label highLabel, midLabel, lowLabel;
